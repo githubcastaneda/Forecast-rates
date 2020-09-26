@@ -1,0 +1,43 @@
+
+pacman::p_load(dplyr, tsibble, lessR, tseries, fpp2, fpp3)
+set.seed(42)
+
+# Convert time series to tsibble
+wm <- as_tsibble(wmurders)
+
+# Plot rate, ACF, and PACF
+autoplot(wmurders, main = "Female Murder Rate in the U.S. (Per 100K)", xlab = "Year", ylab = "Murder Rate")
+ggtsdisplay(wmurders, main = "Female Murder Rate Per 100K", plot.type = "partial")
+
+# Plot 1st and 2nd differences
+ggtsdisplay(difference(wmurders), smooth = TRUE, main = "First Difference of Female Murder Rate (U.S.)")
+ggtsdisplay(diff(wmurders, differences = 2), smooth = TRUE, main = "Second Difference of Female Murder Rate")
+
+# Search all combinations, stepwise/approx = F means run many more combos
+wm %>% model(ARIMA(value ~ pdq(d=1), stepwise = FALSE, approximation = FALSE)) %>% report()
+auto.arima(wmurders, d = 1)
+
+# Manual search
+wm %>% model(ARIMA(value ~ pdq(0,1,0))) %>% report()
+wm %>% model(ARIMA(value ~ pdq(1,1,0))) %>% report()
+wm %>% model(ARIMA(value ~ pdq(2,1,0))) %>% report()
+wm %>% model(ARIMA(value ~ pdq(0,1,1))) %>% report()
+wm %>% model(ARIMA(value ~ pdq(1,1,1))) %>% report()
+wm %>% model(ARIMA(value ~ pdq(2,1,1))) %>% report()
+wm %>% model(ARIMA(value ~ pdq(0,1,2))) %>% report() # Lowest information criterion
+wm %>% model(ARIMA(value ~ pdq(1,1,2))) %>% report()
+wm %>% model(ARIMA(value ~ pdq(2,1,2))) %>% report()
+
+
+# Best model residuals check
+fit <- Arima(wmurders, order = c(0, 1, 2))
+checkresiduals(fit, lag = 13)
+fit1 <- wm %>% model(ARIMA(value ~ pdq(0,1,2))) %>% report()
+gg_tsresiduals(fit1) + ggtitle("Residuals Time Series")
+# Residuals mean
+mean(residuals(fit))
+
+# Forecast next three years
+plot(naive(wmurders, h = 3), main = "Naive Forecast of Female Murder Rate", xlab = "Year",
+     ylab = "Murder Rate")
+naive(wmurders, h=3)
